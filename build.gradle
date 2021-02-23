@@ -1,0 +1,72 @@
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+def bobcatVersion = '2.3.0'
+def cucumberVersion = '4.5.1'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url 'https://repo1.perfectomobile.com/public/repositories/maven'
+    }
+}
+
+dependencies {
+    compile group: 'com.cognifide.qa.bb', name: 'bb-core', version: bobcatVersion
+//    compile group: 'info.cukes', name: 'cucumber-core', version: '1.2.5', ext: 'pom'
+//    testCompile group: 'info.cukes', name: 'cucumber-core', version: '1.2.5'
+//    testCompile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
+//    testCompile group: 'info.cukes', name: 'cucumber-jvm', version: '1.2.5'
+//    testCompile group: 'info.cukes', name: 'cucumber-junit', version: '1.2.5'
+//    testCompile group: 'info.cukes', name: 'cucumber-jvm-deps', version: '1.0.5'
+    compile "io.cucumber:cucumber-guice:$cucumberVersion"
+
+    compile "io.cucumber:cucumber-java:$cucumberVersion"
+    compile "io.cucumber:cucumber-java8:$cucumberVersion"
+    compile "io.cucumber:cucumber-guice:$cucumberVersion"
+    compile "io.cucumber:cucumber-core:$cucumberVersion"
+    compile ('com.perfecto.reporting-sdk:reportium-java:+') {
+        exclude group: "org.seleniumhq.selenium", module: "selenium-remote-driver"
+        exclude group: "org.seleniumhq.selenium", module: "selenium-java"
+        exclude group: "org.seleniumhq.selenium", module: "selenium-api"
+    }
+    compile 'com.perfectomobile:http-client:+'
+    compile 'com.perfectomobile:pm-webdriver:+'
+}
+
+def cucumberArgs = ['--plugin', 'pretty',
+                    '--plugin', 'html:build/cucumber-html-report',
+                    '--plugin', 'json:build/cucumber-json-report.json',
+                    '--plugin', 'perfecto.MyTestListener',
+                    '--glue', 'perfecto',
+                    'src/test/resources']
+
+def profiles = [
+        'firefox': 'firefox'
+]
+
+configurations {
+    cucumberRuntime {
+        extendsFrom testRuntime
+    }
+}
+
+task cucumber() {
+    def profile = System.getProperty('profile', 'default')
+    if (!profile.equals('default')) {
+        System.setProperty('bobcat.config.contexts', profile)
+    }
+
+    dependsOn assemble, compileJava, compileTestJava
+    doLast {
+        javaexec {
+            main = "cucumber.api.cli.Main"
+            classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+            args = cucumberArgs
+            systemProperties = System.getProperties()
+        }
+    }
+}
